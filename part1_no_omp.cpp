@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <omp.h>
 #include "get_walltime.c"
 // Matrix struct (no need to deal with private data, so class uneeded)
 struct Matrix
@@ -87,20 +86,16 @@ struct Matrix
 // Matrix multiplication, takes in Matrix a, b and c, then performs c = a*b.
 void MatMul (const Matrix& a, const Matrix& b, Matrix& c)
 {
-  #pragma omp parallel
-  {
-    #pragma omp for collapse(3)
-	  for (int i = 0; i < a.dim; ++i)
-	  {
-		  for (int k = 0; k < a.dim; ++k)
-		  {
-			  for (int j = 0; j < a.dim; ++j)
-			  {
-				  c.data[i * a.dim + j] += a.data[i * a.dim + k] * b.data[k * a.dim + j];
-			  }
-		  }
-	  }
-  }
+	for (int i = 0; i < a.dim; ++i)
+	{
+		for (int k = 0; k < a.dim; ++k)
+		{
+			for (int j = 0; j < a.dim; ++j)
+			{
+				c.data[i * a.dim + j] += a.data[i * a.dim + k] * b.data[k * a.dim + j];
+			}
+		}
+	}
 }
 
 // Function to test matrices of size n
@@ -121,9 +116,11 @@ double TestSize(int n, int tests)
 		b.GenerateElements(true);
 
     // Matrix Multiplication
-    double start_time = omp_get_wtime();
+    double start_time;
+    get_walltime(&start_time);
 		MatMul(a, b, c);
-    double end_time = omp_get_wtime();
+    double end_time;
+    get_walltime(&end_time);
     
     // Final Timing
 		timeSum += end_time - start_time;
@@ -135,18 +132,13 @@ double TestSize(int n, int tests)
 
 // Function to output test data, should print to standard output
 // The goal is to pipeline the data into python for plotting, ex: ./project_1 > python main.py
-void OutputTestData(int test_size, double time_elapsed, int n_threads)
+void OutputTestData(int test_size, double time_elapsed)
 {
-    printf("%d \t %d \t %.8f\n", n_threads, test_size,  time_elapsed);
+    printf("%d \t %d \t %.8f\n", 0, test_size,  time_elapsed);
 }
 
 int main(int argc, char* argv[])
 {
-  int n_threads = 1;
-  if (argc == 2)
-    n_threads = atoi(argv[1]);
-  omp_set_num_threads(n_threads);
-	
   // Keeping a simple list of sizes to check for now, a list for storing results, and how many tests for each size
 	std::vector<int> test_sizes = {20, 100, 1000};
 	std::vector<double> test_results(test_sizes.size(), 0);
@@ -156,6 +148,6 @@ int main(int argc, char* argv[])
 	for (int i = 0; i < test_sizes.size(); ++i)
 	{
 		test_results[i] = TestSize(test_sizes[i], test_quantity);
-    OutputTestData(test_sizes[i], test_results[i], n_threads);
+    OutputTestData(test_sizes[i], test_results[i]);
 	}
 }
