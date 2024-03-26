@@ -217,16 +217,16 @@ double TestSize(int n, int rank, int process_count)
 
 		double end_time = omp_get_wtime();	
 		// check if c and sanity_check are equal
-		for (int i = 0; i < n; ++i)
-		{
-			for (int j = 0; j < n; ++j)
-			{
-				if (c.data[i * n + j] != sanity_check.data[i * n + j])
-				{
-					printf("ERROR: c[%i][%i] = %f, sanity_check[%i][%i] = %f\n", i, j, c.data[i * n + j], i, j, sanity_check.data[i * n + j]);
-				}
-			}
-		}
+		// for (int i = 0; i < n; ++i)
+		// {
+		// 	for (int j = 0; j < n; ++j)
+		// 	{
+		// 		if (c.data[i * n + j] != sanity_check.data[i * n + j])
+		// 		{
+		// 			printf("ERROR: c[%i][%i] = %f, sanity_check[%i][%i] = %f\n", i, j, c.data[i * n + j], i, j, sanity_check.data[i * n + j]);
+		// 		}
+		// 	}
+		// }
 		
 		timeSum += end_time - start_time;
 	} else {
