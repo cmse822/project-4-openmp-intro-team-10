@@ -102,8 +102,12 @@ struct Matrix
 };
 
 // Matrix multiplication, takes in Matrix a, b and c, then performs c = a*b.
-void MatMulWorker (const Matrix& a, const Matrix& b, Matrix& c, int rank, int process_count)
+void MatMul (const Matrix& a, const Matrix& b, Matrix& c)
 {
+	for (int i = 0; i < a.dim * a.dim; ++i) {
+        c.data[i] = 0;
+    }
+	
     #pragma omp for collapse(3)
 	  for (int i = 0; i < a.dim; ++i)
 	  {
@@ -115,6 +119,15 @@ void MatMulWorker (const Matrix& a, const Matrix& b, Matrix& c, int rank, int pr
 			  }
 		  }
 	  }
+}
+
+void PrintRow(double row[], int n)
+{
+	for (int i = 0; i < n; ++i)
+	{
+		std::cout << row[i] << " ";
+	}
+	std::cout << std::endl;
 }
 
 // Function to test matrices of size n
@@ -133,6 +146,9 @@ double TestSize(int n, int rank, int process_count)
 		a.GenerateElements(true);
 		b.GenerateElements(true);
 
+		Matrix sanity_check(n);
+		MatMul(a, b, sanity_check);
+
 		MPI_Status status;
 		int processed_rows = 0;
 		int row_index = 0;
@@ -145,7 +161,7 @@ double TestSize(int n, int rank, int process_count)
 		for (int i=1; i < process_count; i++){
 			availability[i] = -1;
 			double array[n*n];
-			a.ToArray(array);
+			b.ToArray(array);
 			// printf("MASTER SENDING Matrix B to %i \n",i);
 			MPI_Send(&array,n*n,MPI_DOUBLE,i,0,MPI_COMM_WORLD);			
 		}
@@ -158,7 +174,7 @@ double TestSize(int n, int rank, int process_count)
 			for(int i=1; i < process_count; i++)
 			{
 				if(availability[i] == -1 & row_index < n){
-					b.getRow(row, row_index);
+					a.getRow(row, row_index);
 					// printf("MASTER SENDING row %i to %i \n", processed_rows, i);
 					MPI_Send(&processed_rows,1,MPI_INT,i,3,MPI_COMM_WORLD);
 					MPI_Send(&row,n,MPI_DOUBLE,i,1,MPI_COMM_WORLD);			
@@ -177,7 +193,7 @@ double TestSize(int n, int rank, int process_count)
 					{
 						c.data[availability[i] * n + j] = response_row[j];
 					}
-
+					
 					availability[i] = -1;
 					processed_rows += 1;
 					// printf("### MASTER processed_rows %i\n", processed_rows);
@@ -199,14 +215,25 @@ double TestSize(int n, int rank, int process_count)
 		}
 
 
-		double end_time = omp_get_wtime();		
+		double end_time = omp_get_wtime();	
+		// check if c and sanity_check are equal
+		for (int i = 0; i < n; ++i)
+		{
+			for (int j = 0; j < n; ++j)
+			{
+				if (c.data[i * n + j] != sanity_check.data[i * n + j])
+				{
+					printf("ERROR: c[%i][%i] = %f, sanity_check[%i][%i] = %f\n", i, j, c.data[i * n + j], i, j, sanity_check.data[i * n + j]);
+				}
+			}
+		}
+		
 		timeSum += end_time - start_time;
 	} else {
 		// printf("WORKER %i STARTED \n",rank);
 		double array[n*n] = {};
 		double row[n] = {};
-		double res_row[n] = {};
-
+		
 		// Matrix a(n);
 		int processed_rows = 0;
 		MPI_Recv(&array,n*n,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
@@ -214,6 +241,7 @@ double TestSize(int n, int rank, int process_count)
 
 		while (processed_rows < n)
 		{
+			double res_row[n] = {};
 			// printf("WORKER %i RECEIVING ROW TO MUL....\n",rank);
 			MPI_Recv(&processed_rows,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 			if (processed_rows == n)
@@ -221,13 +249,14 @@ double TestSize(int n, int rank, int process_count)
 				break;
 			}
 			MPI_Recv(&row,n,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-			// row to matrix multiplication with openmp
+			// printf("WORKER RECEIVED ROW \t");
+
 			#pragma omp for collapse(2)
 			for (int i = 0; i < n; ++i)
 			{
 				for (int j = 0; j < n; ++j)
 				{
-					res_row[i] += array[i * n + j] * row[j];
+					res_row[i] +=  row[j] * array[j * n + i];
 				}
 			}
 			// printf("WORKER %i SENDING BACK ROW....\n",rank);
@@ -239,7 +268,7 @@ double TestSize(int n, int rank, int process_count)
 
 	}
 
-	return timeSum/1;
+	return timeSum;
 }
 
 // Function to output test data, should print to standard output
@@ -265,7 +294,7 @@ int main(int argc, char* argv[])
 		// printf("Total threads: %i\n",omp_get_max_threads());
 	}
 	
-	std::vector<int> test_sizes = {100, 1000, 2000, 10000};
+	std::vector<int> test_sizes = {2, 5,100, 200, 500, 1000, 2000, 10000};
 	std::vector<double> test_results(test_sizes.size(), 0);
 	// Run tests on each size
 	for (int i = 0; i < test_sizes.size(); ++i)
