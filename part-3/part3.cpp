@@ -120,12 +120,13 @@ void MatMulWorker (const Matrix& a, const Matrix& b, Matrix& c, int rank, int pr
 // Function to test matrices of size n
 // It will perform "tests" number of tests to account for any variance, returning the average
 double TestSize(int n, int rank, int process_count)
-{
+{	
+	double timeSum = 0.0;
 	// Sum of times for all the tests for this size
 	if (rank == 0)
 	{
-		double timeSum = 0.0;
-    	// Generate matrices, populate randomly for a and b (c starts as all 0s)
+		
+		// Generate matrices, populate randomly for a and b (c starts as all 0s)
 		Matrix a(n);
 		Matrix b(n);
 		Matrix c(n);
@@ -134,94 +135,111 @@ double TestSize(int n, int rank, int process_count)
 
 		MPI_Status status;
 		int processed_rows = 0;
+		int row_index = 0;
+
+
 		int availability[n];
 
-    	double start_time = omp_get_wtime();
+		double start_time = omp_get_wtime();
 		
 		for (int i=1; i < process_count; i++){
-			availability[i] = 1;
+			availability[i] = -1;
 			double array[n*n];
 			a.ToArray(array);
-			printf("SENDING to %i \n",i);
+			// printf("MASTER SENDING Matrix B to %i \n",i);
 			MPI_Send(&array,n*n,MPI_DOUBLE,i,0,MPI_COMM_WORLD);			
 		}
 		
-		double row[n*n];
-		double response_row[n*n];
+		double row[n];
+		double response_row[n];
 
 		while (processed_rows < n)
 		{
-
-			
-			
-			
 			for(int i=1; i < process_count; i++)
 			{
-				if(availability[i] == 1){
-					b.getRow(row,processed_rows);
-					printf("SENDING row %i to %i \n", processed_rows, i);
-					MPI_Send(&row,n*n,MPI_DOUBLE,i,0,MPI_COMM_WORLD);			
-					availability[i] = 0;
-					
+				if(availability[i] == -1 & row_index < n){
+					b.getRow(row, row_index);
+					// printf("MASTER SENDING row %i to %i \n", processed_rows, i);
+					MPI_Send(&processed_rows,1,MPI_INT,i,3,MPI_COMM_WORLD);
+					MPI_Send(&row,n,MPI_DOUBLE,i,1,MPI_COMM_WORLD);			
+					availability[i] = row_index;
+					row_index ++;	
 				}
 			}
 
-			// for(int i=1; i < process_count; i++)
-			// {
-			// 	if(availability[i] == 0){
-			// 		printf("RECEIVING RES row %i from %i \n", processed_rows, i);
-			// 		MPI_Recv(&response_row,n,MPI_INT, i,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-			// 		availability[i] = 1;
-			// 		// MPI_Send(&processed_rows,n*n,MPI_INT,i,0,MPI_COMM_WORLD);
-			// 		processed_rows += 1;
-			// 	}
-			// }
-			
+			for(int i=1; i < process_count; i++)
+			{
+				if(availability[i] != -1 & processed_rows <= n){
+					// printf("MASTER RECEIVING RES row %i from %i \n", processed_rows, i);
+					MPI_Recv(&response_row,n,MPI_DOUBLE, i,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+					// replace row availability[i] of c with response_row
+					for (int j = 0; j < n; ++j)
+					{
+						c.data[availability[i] * n + j] = response_row[j];
+					}
 
-			 
-			// }
-			// {
-			// 	MPI_Recv(&Vector[0],n,MPI_INT,MPI_ANY_SOURCE,0,MPI_COMM_WORLD,&status);
-			// 	processed_rows++;
-			// 	double array[n*n];
-			// 	a.ToArray(array);
-			// 	MPI_Send(&array,n*n,MPI_DOUBLE,status.MPI_SOURCE,0,MPI_COMM_WORLD);
-			// }
-			// int res;
-		    // MPI_Recv(&res, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-			// process_count--;
-			// MPI_Send(&process_count,n*n,MPI_INT,status.MPI_SOURCE,0,MPI_COMM_WORLD);
+					availability[i] = -1;
+					processed_rows += 1;
+					// printf("### MASTER processed_rows %i\n", processed_rows);
+					// printf("MASTER RECEIVED RES row %i from %i \n", processed_rows, i);
+					MPI_Send(&processed_rows,1,MPI_INT,i,3,MPI_COMM_WORLD);
+				}
+			}
+
+			
+		if (processed_rows == n)
+		{
+			// printf("MASTER FINISHED\n");
+			for(int i=1; i < process_count; i++)
+			{
+				MPI_Send(&processed_rows,1,MPI_INT,i,3,MPI_COMM_WORLD);
+			}
+		}	
+
 		}
-		
-		
-    	double end_time = omp_get_wtime();
-    
-    	// Final Timing
+
+
+		double end_time = omp_get_wtime();		
 		timeSum += end_time - start_time;
-		
-		return timeSum;
 	} else {
-		printf("WORKER STARTED......");
-		double array[n*n];
-		double row[n*n];
+		// printf("WORKER %i STARTED \n",rank);
+		double array[n*n] = {};
+		double row[n] = {};
+		double res_row[n] = {};
 
 		// Matrix a(n);
 		int processed_rows = 0;
 		MPI_Recv(&array,n*n,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		printf("WORKER RECEIVED......");
+		// printf("WORKER %i RECEIVED MATRIX B\n",rank);
 
 		while (processed_rows < n)
 		{
-			printf("WORKER SENDING......");
-			MPI_Send(&row,n*n,MPI_DOUBLE,0,1,MPI_COMM_WORLD);
-
-			// MPI_Recv(&processed_rows,1,MPI_INT,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			// printf("WORKER %i RECEIVING ROW TO MUL....\n",rank);
+			MPI_Recv(&processed_rows,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			if (processed_rows == n)
+			{
+				break;
+			}
+			MPI_Recv(&row,n,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			// row to matrix multiplication with openmp
+			#pragma omp for collapse(2)
+			for (int i = 0; i < n; ++i)
+			{
+				for (int j = 0; j < n; ++j)
+				{
+					res_row[i] += array[i * n + j] * row[j];
+				}
+			}
+			// printf("WORKER %i SENDING BACK ROW....\n",rank);
+			MPI_Send(&res_row,n,MPI_DOUBLE,0,2,MPI_COMM_WORLD);
+			// printf("WORKER %i SENT ROW\n",rank);
+			MPI_Recv(&processed_rows,1,MPI_INT,0,3,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			// printf("WORKER %i RECEIVED processed_rows %i\n",rank, processed_rows);
 		}
-		
-		// MatMul(a, b, c, rank, process_count);
 
 	}
-	return 0;
+
+	return timeSum/1;
 }
 
 // Function to output test data, should print to standard output
@@ -239,20 +257,20 @@ int main(int argc, char* argv[])
 	int rank;
 	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	printf("RANKING %i",rank);
+	// printf("RANKING %i \n",rank);
 	int process_count;
 	MPI_Comm_size(MPI_COMM_WORLD, &process_count);
 	if (rank == 0)
 	{
-		printf("Total threads: %i\n",omp_get_max_threads());
+		// printf("Total threads: %i\n",omp_get_max_threads());
 	}
 	
-	std::vector<int> test_sizes = {20, 100, 1000};
+	std::vector<int> test_sizes = {100, 1000, 2000, 10000};
 	std::vector<double> test_results(test_sizes.size(), 0);
 	// Run tests on each size
 	for (int i = 0; i < test_sizes.size(); ++i)
 	{	
-		printf("DEBUG");
+
 		test_results[i] = TestSize(test_sizes[i], rank, process_count);
 		if (rank == 0)
 		{
