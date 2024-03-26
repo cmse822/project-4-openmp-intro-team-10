@@ -282,7 +282,12 @@ int main(int argc, char* argv[])
 {
 	// Keeping a simple list of sizes to check for now, a list for storing results, and how many tests for each size
 	 // initilaized MPI
-	MPI_Init(NULL, NULL);
+    int provided;
+    MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
+    if (provided < MPI_THREAD_MULTIPLE) {
+        std::cout << "MPI does not provide needed thread support." << std::endl;
+        MPI_Abort(MPI_COMM_WORLD, 1);
+    }
 	int rank;
 	
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
