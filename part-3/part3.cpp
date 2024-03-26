@@ -296,20 +296,13 @@ int main(int argc, char* argv[])
 	MPI_Comm_size(MPI_COMM_WORLD, &process_count);
 	if (rank == 0)
 	{
-		// printf("Total threads: %i\n",omp_get_max_threads());
+		printf("Total threads: %i\n",omp_get_max_threads());
 	}
-	
-	std::vector<int> test_sizes = {2, 5,100, 200, 500, 1000, 2000, 10000};
-	std::vector<double> test_results(test_sizes.size(), 0);
-	// Run tests on each size
-	for (int i = 0; i < test_sizes.size(); ++i)
-	{	
-
-		test_results[i] = TestSize(test_sizes[i], rank, process_count);
-		if (rank == 0)
-		{
-			OutputTestData(test_sizes[i], test_results[i], omp_get_thread_num());
-		}
+	int test_size = atoi(argv[1]);
+	double test_res = TestSize(test_size, rank, process_count);
+	if(rank == 0)
+	{
+		OutputTestData(test_size, test_res, omp_get_thread_num());
 	}
 
 
