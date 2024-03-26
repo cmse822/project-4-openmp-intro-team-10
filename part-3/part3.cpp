@@ -273,9 +273,9 @@ double TestSize(int n, int rank, int process_count)
 
 // Function to output test data, should print to standard output
 // The goal is to pipeline the data into python for plotting, ex: ./project_1 > python main.py
-void OutputTestData(int test_size, double time_elapsed, int n_threads)
+void OutputTestData(int test_size, double time_elapsed, int n_threads, int size_mpi)
 {
-    printf("%d \t %d \t %.8f\n", n_threads, test_size,  time_elapsed);
+    printf("%i \t %i \t %d \t %.8f\n", size_mpi, n_threads, test_size,  time_elapsed);
 }
 
 int main(int argc, char* argv[])
@@ -289,20 +289,17 @@ int main(int argc, char* argv[])
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 	int rank;
-	
+	int size_mpi;
+  	MPI_Comm_size(MPI_COMM_WORLD, &size_mpi);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	// printf("RANKING %i \n",rank);
 	int process_count;
 	MPI_Comm_size(MPI_COMM_WORLD, &process_count);
-	if (rank == 0)
-	{
-		printf("Total threads: %i\n",omp_get_max_threads());
-	}
 	int test_size = atoi(argv[1]);
 	double test_res = TestSize(test_size, rank, process_count);
 	if(rank == 0)
 	{
-		OutputTestData(test_size, test_res, omp_get_thread_num());
+		OutputTestData(test_size, test_res, omp_get_max_threads(), size_mpi);
 	}
 
 
