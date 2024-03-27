@@ -1,0 +1,14 @@
+srun: warning: can't run 2 processes on 16 nodes, setting nnodes to 2
+2 	 1 	 1000 	 3.77680724
+srun: warning: can't run 4 processes on 16 nodes, setting nnodes to 4
+4 	 1 	 1000 	 1.43379400
+srun: warning: can't run 8 processes on 16 nodes, setting nnodes to 8
+srun: warning: can't honor --ntasks-per-node set to 4 which doesn't match the requested tasks 8 with the number of requested nodes 8. Ignoring --ntasks-per-node.
+8 	 1 	 1000 	 0.86452214
+srun: warning: can't honor --ntasks-per-node set to 4 which doesn't match the requested tasks 16 with the number of requested nodes 16. Ignoring --ntasks-per-node.
+srun: Job 33141222 step creation temporarily disabled, retrying (Requested nodes are busy)
+srun: Step created for StepId=33141222.3
+16 	 1 	 1000 	 0.82472289
+srun: warning: can't honor --ntasks-per-node set to 4 which doesn't match the requested tasks 32 with the number of requested nodes 16. Ignoring --ntasks-per-node.
+32 	 1 	 1000 	 1.19704981
+64 	 1 	 1000 	 2.16534233
