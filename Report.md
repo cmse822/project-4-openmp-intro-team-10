@@ -22,10 +22,10 @@ The times-to-solution vs threads graphs can be found below, in part 1.4. Both Th
 Scaling and speedup discussed above, figures are below.
 
 First up is the results from testing 1-16 threads on Thad's desktop:
-![Part 1 Thad Desktop][./part1_plot.png]
+![Part 1 Thad Desktop](./part1_plot.png)
 
 Now here is the results from testing on the HPCC:
-![Part 1 HPCC][./part1_plot_hpcc.png]
+![Part 1 HPCC](./part1_plot_hpcc.png)
 
 ### 1.5
 There is a commented out section that tests this directly after multiplication. We tested this on matrices of size 20-2000, and there were no issues. We did have errors when collapsing inner loops due to race conditions/false sharing. While reordering the loops + collapsing two is fine, we left it with just the outer loop as the problem intended. This section is currently commented out to reduce the time spent on repeated tests on the HPCC (verifying random matrices is slow for large matrices).
