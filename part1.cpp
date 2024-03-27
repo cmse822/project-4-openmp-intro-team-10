@@ -89,7 +89,7 @@ void MatMul (const Matrix& a, const Matrix& b, Matrix& c)
 {
   #pragma omp parallel
   {
-    #pragma omp for collapse(3)
+    #pragma omp for
 	  for (int i = 0; i < a.dim; ++i)
 	  {
 		  for (int k = 0; k < a.dim; ++k)
@@ -124,7 +124,34 @@ double TestSize(int n, int tests)
     double start_time = omp_get_wtime();
 		MatMul(a, b, c);
     double end_time = omp_get_wtime();
-    
+
+    /* Code for testing correctness, greatly increases time so I'm leaving it out
+     * Note, has been tested on matrices of size 20 - 2000
+    for (int i = 0; i < a.dim; ++i)
+	  {
+		  for (int k = 0; k < a.dim; ++k)
+		  {
+			  for (int j = 0; j < a.dim; ++j)
+			  {
+				  d.data[i * a.dim + j] += a.data[i * a.dim + k] * b.data[k * a.dim + j];
+			  }
+		  }
+	  }
+    int count = 0;
+    for (int i = 0; i < a.dim; ++i)
+    {
+      for (int j = 0; j < a.dim; ++j)
+      {
+        if (c.data[i * a.dim + j] != d.data[i * a.dim + j])
+        {
+          count++;
+        }
+      }
+    }
+    if (count > 0)
+      std::cout << "Matrix doesn't match, count = " << count << std::endl; 
+    */
+
     // Final Timing
 		timeSum += end_time - start_time;
   }
